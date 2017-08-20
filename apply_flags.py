@@ -45,26 +45,41 @@ def flag_data(uvdata,telescope,flag_file):
 
 for file in os.listdir(UVFITSFILESpath):
     if file.endswith('.UV'):
-	for i in range(len(EF_pointings[0])):
-			if EF_pointings[0][i][:8] == file[:8]:
-				fitld = AIPSTask('FITLD')
-				fitld.datain = 'PWD:%s' % file
-				fitld.digicor = -1
-				fitld.go()
-				uvdata = AIPSUVData(file[:8],'MULTI',1,1)
-				flag_data(uvdata,telescope='Ef',flag_file=EF_pointings)
-				flag_data(uvdata,telescope='Lo',flag_file=LO_pointings)
-				imagr = AIPSTask('IMAGR')
-				imagr.indata = uvdata
-				imagr.sources[1] = file[:8]
-				imagr.cellsize[1:] = 0.001, 0.001
-				imagr.imsize[1:] = 1024,1024
-				imagr.nchav = 32
-				imagr.niter = 100
-				imagr.docalib = 2
-				#imagr.uvwtfn = 'NA'
-				imagr.go()
-				fittp = AIPSTask('FITTP')
-				fittp.indata = uvdata
-				fittp.dataout = 'PWD:%s_FG.UV' % file[:-3]
-				fittp.go()
+		os.system('rsync -ar --progress %s%s ./' % (UVFITSFILESpath,file))
+		for i in range(len(EF_pointings[0])):
+				if EF_pointings[0][i][:8] == file[:8]:
+					fitld = AIPSTask('FITLD')
+					fitld.datain = 'PWD:%s' % file
+					fitld.digicor = -1
+					fitld.go()
+					uvdata = AIPSUVData(file[:8],'MULTI',1,1)
+					flag_data(uvdata,telescope='Ef',flag_file=EF_pointings)
+					flag_data(uvdata,telescope='Lo',flag_file=LO_pointings)
+					imagr = AIPSTask('IMAGR')
+					imagr.indata = uvdata
+					imagr.sources[1] = file[:8]
+					imagr.cellsize[1:] = 0.001, 0.001
+					imagr.imsize[1:] = 2048,2048
+					imagr.nchav = 32
+					imagr.niter = 100
+					imagr.docalib = 2
+					imagr.go()
+					imagr.uvwtfn = 'NA'
+					imagr.go()
+					image1 = AIPSImage(file[:8],'ICL001',1,1)
+					image2 = AIPSImage(file[:8],'ICL001',1,2)
+					fittp = AIPSTask('FITTP')
+					fittp.indata = uvdata
+					fittp.dataout = 'PWD:%s_FG.UV' % file[:-3]
+					fittp.go()
+					fittp.indata = image1
+					fittp.dataout = 'PWD:%s_FG_IM.fits' % file[:-3]
+					fittp.go()
+					fittp.indata = image2
+					fittp.dataout = 'PWD:%s_FG_NA_IM.fits' % file[:-3]
+					fittp.go()
+					image1.zap()
+					image2.zap()
+					uvdata.zap()
+					AIPSImage(file[:8],'IBM001',1,1).zap()
+					AIPSImage(file[:8],'IBM001',1,1).zap()
